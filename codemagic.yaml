@@ -9,15 +9,14 @@ workflows:
     instance_type: mac_mini_m1 # Standard powerful builder machine supporting Android builds
     
     environment:
-      android_sdk: true
       java: 17 # Use Java 17 required by modern Android Gradle builds
       
     triggering:
       events:
         - push
-      branches:
-        - main
-        - master
+      branch_patterns:
+        - pattern: 'main'
+        - pattern: 'master'
 
     scripts:
       - name: Set up local.properties
