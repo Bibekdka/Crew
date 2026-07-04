@@ -1,0 +1,6 @@
+{
+  "name": "Labour Ledger",
+  "description": "An offline-first labour attendance, advance payment, and expense management tool.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
