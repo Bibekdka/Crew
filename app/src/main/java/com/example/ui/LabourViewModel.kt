@@ -186,14 +186,15 @@ class LabourViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // Expense operations
-    fun addExpense(title: String, amount: Double, category: String, note: String = "") {
+    fun addExpense(title: String, amount: Double, category: String, note: String = "", date: Long = System.currentTimeMillis()) {
         viewModelScope.launch {
             repository.insertExpense(
                 Expense(
                     title = title,
                     amount = amount,
                     category = category,
-                    note = note
+                    note = note,
+                    date = date
                 )
             )
         }

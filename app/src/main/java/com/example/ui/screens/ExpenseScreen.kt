@@ -23,8 +23,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.example.data.Expense
 import com.example.ui.LabourViewModel
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,10 +35,11 @@ fun ExpenseScreen(
     modifier: Modifier = Modifier
 ) {
     val expenses by viewModel.allExpenses.collectAsState()
+    val workers by viewModel.workers.collectAsState()
     var showAddExpenseDialog by remember { mutableStateOf(false) }
     var selectedCategoryFilter by remember { mutableStateOf("All") }
 
-    val categories = listOf("All", "Material", "Food", "Transport", "Tools", "Other")
+    val categories = listOf("All", "Labor", "Material", "Food", "Transport", "Tools", "Other")
 
     // Filtered expenses list
     val filteredExpenses = remember(expenses, selectedCategoryFilter) {
@@ -195,9 +198,10 @@ fun ExpenseScreen(
 
         if (showAddExpenseDialog) {
             AddExpenseDialog(
+                workers = workers,
                 onDismiss = { showAddExpenseDialog = false },
-                onAdd = { title, amount, category, note ->
-                    viewModel.addExpense(title, amount, category, note)
+                onAdd = { title, amount, category, note, date ->
+                    viewModel.addExpense(title, amount, category, note, date)
                     showAddExpenseDialog = false
                 }
             )
@@ -234,6 +238,7 @@ fun ExpenseLogCard(
                 ) {
                     Icon(
                         imageVector = when (expense.category.lowercase()) {
+                            "labor" -> Icons.Default.Person
                             "material" -> Icons.Default.Construction
                             "food" -> Icons.Default.Restaurant
                             "transport" -> Icons.Default.LocalShipping
@@ -307,24 +312,30 @@ fun ExpenseLogCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseDialog(
+    workers: List<com.example.data.Worker>,
     onDismiss: () -> Unit,
-    onAdd: (String, Double, String, String) -> Unit
+    onAdd: (String, Double, String, String, Long) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("Material") }
+    var category by remember { mutableStateOf("Labor") }
     var note by remember { mutableStateOf("") }
 
     var titleError by remember { mutableStateOf(false) }
     var amountError by remember { mutableStateOf(false) }
 
-    val categories = listOf("Material", "Food", "Transport", "Tools", "Other")
+    val categories = listOf("Labor", "Material", "Food", "Transport", "Tools", "Other")
+
+    var selectedDateEpoch by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    var selectedWorkerId by remember { mutableStateOf<Int?>(null) }
+    var selectedWorkerName by remember { mutableStateOf("None") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Log General Expense",
+                text = "Log Labor & Project Expense",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -334,33 +345,6 @@ fun AddExpenseDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = {
-                        title = it
-                        titleError = false
-                    },
-                    label = { Text("Expense Title / Item") },
-                    placeholder = { Text("e.g. 50 bags Cement, Diesel for generator") },
-                    isError = titleError,
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = {
-                        amount = it
-                        amountError = false
-                    },
-                    label = { Text("Amount (₹)") },
-                    placeholder = { Text("e.g. 15000") },
-                    isError = amountError,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
                 // Category selector
                 Column {
                     Text(
@@ -411,11 +395,172 @@ fun AddExpenseDialog(
                     }
                 }
 
+                // Date Selector
+                val context = LocalContext.current
+                val calendar = Calendar.getInstance()
+                calendar.timeInMillis = selectedDateEpoch
+                val year = calendar.get(Calendar.YEAR)
+                val month = calendar.get(Calendar.MONTH)
+                val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+                OutlinedCard(
+                    onClick = {
+                        android.app.DatePickerDialog(
+                            context,
+                            { _, selectedYear, selectedMonth, selectedDay ->
+                                val newCal = Calendar.getInstance()
+                                newCal.set(selectedYear, selectedMonth, selectedDay)
+                                selectedDateEpoch = newCal.timeInMillis
+                            },
+                            year, month, day
+                        ).show()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarToday,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Expense Date",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = LabourViewModel.formatEpochToDisplay(selectedDateEpoch),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Change Date",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                // Associated Worker (Optional dropdown)
+                var expanded by remember { mutableStateOf(false) }
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedCard(
+                        onClick = { expanded = !expanded },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Associated Worker (Optional)",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = selectedWorkerName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Select Worker",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        modifier = Modifier.fillMaxWidth(0.9f)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("None") },
+                            onClick = {
+                                selectedWorkerId = null
+                                selectedWorkerName = "None"
+                                expanded = false
+                            }
+                        )
+                        workers.forEach { worker ->
+                            DropdownMenuItem(
+                                text = { Text(worker.name) },
+                                onClick = {
+                                    selectedWorkerId = worker.id
+                                    selectedWorkerName = worker.name
+                                    if (category == "Labor" && (title.isBlank() || title.startsWith("Labor for"))) {
+                                        title = "Labor for ${worker.name}"
+                                    }
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = {
+                        title = it
+                        titleError = false
+                    },
+                    label = { Text("Expense Title / Item") },
+                    placeholder = { Text("e.g. Daily wages payout, Cement, Diesel") },
+                    isError = titleError,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = {
+                        amount = it
+                        amountError = false
+                    },
+                    label = { Text("Amount (₹)") },
+                    placeholder = { Text("e.g. 15000") },
+                    isError = amountError,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },
-                    label = { Text("Remarks (Optional)") },
-                    placeholder = { Text("e.g. Bill attached with Supervisor") },
+                    label = { Text("Remarks / Project Notes") },
+                    placeholder = { Text("e.g. Site B labor, paid on spot") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -430,7 +575,12 @@ fun AddExpenseDialog(
                     } else if (amountDouble == null || amountDouble <= 0) {
                         amountError = true
                     } else {
-                        onAdd(title.trim(), amountDouble, category, note.trim())
+                        val finalNote = if (selectedWorkerName != "None") {
+                            if (note.isBlank()) "Worker: $selectedWorkerName" else "Worker: $selectedWorkerName | $note"
+                        } else {
+                            note
+                        }
+                        onAdd(title.trim(), amountDouble, category, finalNote.trim(), selectedDateEpoch)
                     }
                 }
             ) {
