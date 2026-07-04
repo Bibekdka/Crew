@@ -1,0 +1,35 @@
+# Codemagic CI/CD Configuration for Labour Ledger Android App
+# This file enables automated cloud builds to generate the installable APK file for your Android phone.
+# Learn more at: https://docs.codemagic.io/
+
+workflows:
+  android-workflow:
+    name: Build Android APK
+    max_build_duration: 60
+    instance_type: mac_mini_m1 # Standard powerful builder machine supporting Android builds
+    
+    environment:
+      android_sdk: true
+      java: 17 # Use Java 17 required by modern Android Gradle builds
+      
+    triggering:
+      events:
+        - push
+      branches:
+        - main
+        - master
+
+    scripts:
+      - name: Set up local.properties
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          
+      - name: Build Android Debug APK
+        script: |
+          # Ensure execution permissions on the gradle wrapper
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+    artifacts:
+      # Locate and upload the built APK so you can download it directly from the Codemagic dashboard
+      - app/build/outputs/apk/**/*.apk
