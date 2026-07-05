@@ -23,11 +23,12 @@ workflows:
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
           
-      - name: Regenerate Gradle Wrapper
+      - name: Download Valid Gradle Wrapper Jar
         script: |
           # Sometimes the binary wrapper jar gets corrupted during git transmission.
-          # Regenerating it with the correct Gradle version required by the build (9.3.1).
-          gradle wrapper --gradle-version 9.3.1
+          # Downloading the official wrapper jar directly from the Gradle repository ensures a clean and valid binary.
+          mkdir -p gradle/wrapper
+          curl -sSLo gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v9.3.1/gradle/wrapper/gradle-wrapper.jar
 
       - name: Build Android Debug APK
         script: |
