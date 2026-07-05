@@ -179,6 +179,12 @@ class LabourViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun updatePayment(payment: Payment) {
+        viewModelScope.launch {
+            repository.updatePayment(payment)
+        }
+    }
+
     fun deletePayment(payment: Payment) {
         viewModelScope.launch {
             repository.deletePayment(payment)

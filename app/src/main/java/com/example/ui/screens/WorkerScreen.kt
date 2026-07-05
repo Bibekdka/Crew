@@ -161,6 +161,12 @@ fun WorkerScreen(
                 },
                 onDeletePayment = { payment ->
                     viewModel.deletePayment(payment)
+                },
+                onUpdateWorker = { updatedWorker ->
+                    viewModel.updateWorker(updatedWorker)
+                },
+                onUpdatePayment = { updatedPayment ->
+                    viewModel.updatePayment(updatedPayment)
                 }
             )
         }
@@ -513,10 +519,14 @@ fun WorkerDetailsDialog(
     onDismiss: () -> Unit,
     onAddPayment: () -> Unit,
     onDeleteWorker: () -> Unit,
-    onDeletePayment: (com.example.data.Payment) -> Unit
+    onDeletePayment: (com.example.data.Payment) -> Unit,
+    onUpdateWorker: (com.example.data.Worker) -> Unit,
+    onUpdatePayment: (com.example.data.Payment) -> Unit
 ) {
     val context = LocalContext.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showEditWorkerDialog by remember { mutableStateOf(false) }
+    var paymentToEdit by remember { mutableStateOf<com.example.data.Payment?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -535,6 +545,13 @@ fun WorkerDetailsDialog(
                             }
                         },
                         actions = {
+                            IconButton(onClick = { showEditWorkerDialog = true }) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = "Edit Worker",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                             IconButton(onClick = { showDeleteConfirm = true }) {
                                 Icon(
                                     Icons.Default.Delete,
@@ -772,7 +789,15 @@ fun WorkerDetailsDialog(
                                             fontWeight = FontWeight.Bold,
                                             style = MaterialTheme.typography.titleMedium
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        IconButton(onClick = { paymentToEdit = payment }) {
+                                            Icon(
+                                                Icons.Default.Edit,
+                                                contentDescription = "Edit record",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                         IconButton(onClick = { onDeletePayment(payment) }) {
                                             Icon(
                                                 Icons.Default.DeleteOutline,
@@ -898,6 +923,221 @@ fun WorkerDetailsDialog(
                     }
                 )
             }
+
+            // Edit Worker Dialog
+            if (showEditWorkerDialog) {
+                EditWorkerDialog(
+                    worker = fin.worker,
+                    onDismiss = { showEditWorkerDialog = false },
+                    onSave = { updatedWorker ->
+                        onUpdateWorker(updatedWorker)
+                        showEditWorkerDialog = false
+                    }
+                )
+            }
+
+            // Edit Payment Dialog
+            paymentToEdit?.let { payment ->
+                EditPaymentDialog(
+                    payment = payment,
+                    onDismiss = { paymentToEdit = null },
+                    onSave = { updatedPayment ->
+                        onUpdatePayment(updatedPayment)
+                        paymentToEdit = null
+                    }
+                )
+            }
         }
+    )
+}
+
+@Composable
+fun EditWorkerDialog(
+    worker: Worker,
+    onDismiss: () -> Unit,
+    onSave: (Worker) -> Unit
+) {
+    var name by remember { mutableStateOf(worker.name) }
+    var phone by remember { mutableStateOf(worker.phone) }
+    var wage by remember { mutableStateOf(worker.dailyWage.toInt().toString()) }
+
+    var nameError by remember { mutableStateOf(false) }
+    var wageError by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Edit Worker Details",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = {
+                        name = it
+                        nameError = false
+                    },
+                    label = { Text("Worker Name") },
+                    placeholder = { Text("e.g. John Doe") },
+                    isError = nameError,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Phone Number") },
+                    placeholder = { Text("e.g. 9876543210") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = wage,
+                    onValueChange = {
+                        wage = it
+                        wageError = false
+                    },
+                    label = { Text("Daily Wage (₹)") },
+                    placeholder = { Text("e.g. 500") },
+                    isError = wageError,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val wageDouble = wage.toDoubleOrNull()
+                    if (name.isBlank()) {
+                        nameError = true
+                    } else if (wageDouble == null || wageDouble <= 0) {
+                        wageError = true
+                    } else {
+                        onSave(worker.copy(name = name.trim(), phone = phone.trim(), dailyWage = wageDouble))
+                    }
+                }
+            ) {
+                Text("Save Changes")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        shape = RoundedCornerShape(20.dp)
+    )
+}
+
+@Composable
+fun EditPaymentDialog(
+    payment: com.example.data.Payment,
+    onDismiss: () -> Unit,
+    onSave: (com.example.data.Payment) -> Unit
+) {
+    var amount by remember { mutableStateOf(payment.amount.toInt().toString()) }
+    var type by remember { mutableStateOf(payment.type) } // "Advance" or "Salary Paid"
+    var note by remember { mutableStateOf(payment.note) }
+    var amountError by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Edit Payout / Advance",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = {
+                        amount = it
+                        amountError = false
+                    },
+                    label = { Text("Amount (₹)") },
+                    placeholder = { Text("e.g. 1000") },
+                    isError = amountError,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                // Segmented Payment Type Selector
+                Column {
+                    Text(
+                        text = "Transaction Type",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("Advance", "Salary Paid").forEach { item ->
+                            val selected = type == item
+                            Button(
+                                onClick = { type = item },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text(item, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text("Remarks (Optional)") },
+                    placeholder = { Text("e.g. For medical urgent, weekly salary") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val amountDouble = amount.toDoubleOrNull()
+                    if (amountDouble == null || amountDouble <= 0) {
+                        amountError = true
+                    } else {
+                        onSave(payment.copy(amount = amountDouble, type = type, note = note.trim()))
+                    }
+                }
+            ) {
+                Text("Save Changes")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        shape = RoundedCornerShape(20.dp)
     )
 }

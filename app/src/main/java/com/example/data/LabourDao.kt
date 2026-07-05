@@ -45,6 +45,9 @@ interface LabourDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPayment(payment: Payment)
 
+    @Update
+    suspend fun updatePayment(payment: Payment)
+
     @Delete
     suspend fun deletePayment(payment: Payment)
 

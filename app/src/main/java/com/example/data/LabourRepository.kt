@@ -49,6 +49,10 @@ class LabourRepository(private val labourDao: LabourDao) {
         labourDao.insertPayment(payment)
     }
 
+    suspend fun updatePayment(payment: Payment) {
+        labourDao.updatePayment(payment)
+    }
+
     suspend fun deletePayment(payment: Payment) {
         labourDao.deletePayment(payment)
     }
