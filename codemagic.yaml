@@ -26,8 +26,8 @@ workflows:
       - name: Regenerate Gradle Wrapper
         script: |
           # Sometimes the binary wrapper jar gets corrupted during git transmission.
-          # Regenerating it on the builder machine ensures a fresh and valid binary.
-          gradle wrapper
+          # Regenerating it with the correct Gradle version required by the build (9.3.1).
+          gradle wrapper --gradle-version 9.3.1
 
       - name: Build Android Debug APK
         script: |
